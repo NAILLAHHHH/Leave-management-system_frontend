@@ -1,10 +1,23 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import axios from "axios";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+
+interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: {
+    id: number;
+    roleName: string;
+  };
+}
 
 const Dashboard = () => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -14,6 +27,7 @@ const Dashboard = () => {
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
+        setLoading(false);
       } catch (e) {
         console.error("Failed to parse stored user data");
       }
@@ -22,7 +36,6 @@ const Dashboard = () => {
     // Then fetch fresh user data from API
     const fetchUserData = async () => {
       try {
-        // This endpoint would need to be implemented on your backend
         const response = await axios.get('/api/auth/me');
         console.log("Backend user response:", response.data);
         setUser(response.data);
@@ -43,11 +56,25 @@ const Dashboard = () => {
     navigate('/login');
   };
 
+  const navigateToEmployeeDashboard = () => {
+    navigate('/employee-dashboard');
+  };
+
+  const navigateToAdminDashboard = () => {
+    navigate('/admin-dashboard');
+  };
+
+  const navigateToApplyLeave = () => {
+    navigate('/apply-leave');
+  };
+
+  const isAdmin = user?.role?.roleName === "ADMIN";
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-t-blue-500 border-b-blue-500 border-l-gray-200 border-r-gray-200 rounded-full animate-spin mx-auto"></div>
+          <Loader2 className="h-16 w-16 animate-spin text-blue-500 mx-auto" />
           <p className="mt-4 text-gray-700">Loading...</p>
         </div>
       </div>
@@ -76,10 +103,10 @@ const Dashboard = () => {
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
           <h2 className="text-xl font-medium mb-4">Dashboard</h2>
           <p className="text-gray-600">
-            Welcome to your dashboard. Here you can manage your leave requests and view your statistics.
+            Welcome to the leave management system. Use the links below to navigate to different sections.
           </p>
           
           {user && (
@@ -99,6 +126,55 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Employee Dashboard</CardTitle>
+              <CardDescription>View your leave balances and history</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-500 mb-4">
+                Access your personal dashboard to view leave balances, apply for leave, and check request status.
+              </p>
+              <Button onClick={navigateToEmployeeDashboard} className="w-full">
+                Go to Employee Dashboard
+              </Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Apply for Leave</CardTitle>
+              <CardDescription>Request time off</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-500 mb-4">
+                Submit a new leave request for approval. You can choose from various leave types.
+              </p>
+              <Button onClick={navigateToApplyLeave} className="w-full">
+                Apply for Leave
+              </Button>
+            </CardContent>
+          </Card>
+          
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Admin Dashboard</CardTitle>
+                <CardDescription>Manage leaves and employees</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-500 mb-4">
+                  Access the admin panel to manage leave approvals, employees, and system settings.
+                </p>
+                <Button onClick={navigateToAdminDashboard} className="w-full">
+                  Go to Admin Dashboard
+                </Button>
+              </CardContent>
+            </Card>
           )}
         </div>
       </main>
