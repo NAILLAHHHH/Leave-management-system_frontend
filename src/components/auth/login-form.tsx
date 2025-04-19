@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -78,9 +77,19 @@ export function LoginForm() {
                 </Button>
               </div>
             </div>
-            <Button className="w-full" type="submit" disabled={isLoading}>
+            <Button 
+              className="w-full bg-[#0EA5E9] hover:bg-[#0EA5E9]/90" 
+              type="submit" 
+              disabled={isLoading}
+            >
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
+            <div className="text-center text-sm">
+              Don't have an account?{" "}
+              <Link to="/signup" className="text-[#0EA5E9] hover:underline">
+                Sign up
+              </Link>
+            </div>
           </div>
         </form>
       </CardContent>

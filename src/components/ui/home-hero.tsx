@@ -14,7 +14,7 @@ export function HomeHero() {
             Streamline your leave requests, approvals, and tracking. Manage time off efficiently with our comprehensive leave management solution.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
-            <Button asChild className="bg-blue-600 hover:bg-blue-700">
+            <Button asChild className="bg-[#0EA5E9] hover:bg-[#0EA5E9]/90">
               <Link to="/login">Login to Dashboard</Link>
             </Button>
             <Button variant="outline" asChild>
