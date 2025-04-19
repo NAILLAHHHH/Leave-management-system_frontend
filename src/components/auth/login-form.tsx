@@ -11,21 +11,58 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import axios from "axios";
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [formData, setFormData] = useState({
+    email: "",
+    password: ""
+  });
   const navigate = useNavigate();
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleChange = (e) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [id]: value
+    }));
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setIsLoading(true);
-    // TODO: Integrate with your backend auth service
-    // For now, we'll simulate a login
-    setTimeout(() => {
-      setIsLoading(false);
+    setError("");
+    
+    try {
+      // Call the login API endpoint
+      const response = await axios.post("/api/auth/login", {
+        email: formData.email,
+        password: formData.password
+      });
+      
+      // Store the token in localStorage
+      localStorage.setItem("token", response.data.token);
+      
+      // If user data is returned, you can also store that
+      if (response.data.user) {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+      }
+      
+      // Redirect to dashboard
       navigate("/dashboard");
-    }, 1000);
+    } catch (err) {
+      // Handle errors
+      if (err.response && err.response.data) {
+        setError(err.response.data.message || "Login failed");
+      } else {
+        setError("An error occurred during login");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -37,6 +74,11 @@ export function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-md mb-4 text-sm">
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4">
             <div className="grid gap-2">
@@ -49,6 +91,8 @@ export function LoginForm() {
                   type="email"
                   className="pl-9"
                   required
+                  value={formData.email}
+                  onChange={handleChange}
                 />
               </div>
             </div>
@@ -61,6 +105,8 @@ export function LoginForm() {
                   type={showPassword ? "text" : "password"}
                   className="pl-9 pr-9"
                   required
+                  value={formData.password}
+                  onChange={handleChange}
                 />
                 <Button
                   type="button"

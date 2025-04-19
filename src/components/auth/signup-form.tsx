@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,21 +10,74 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Eye, EyeOff, Lock, Mail, User, UserCheck } from "lucide-react";
+import axios from "axios";
 
 export function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    roleName: ""
+  });
   const navigate = useNavigate();
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleChange = (e) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [id]: value
+    }));
+  };
+
+  const handleRoleChange = (value) => {
+    setFormData(prev => ({
+      ...prev,
+      roleName: value
+    }));
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setIsLoading(true);
-    // TODO: Integrate with your backend auth service
-    setTimeout(() => {
+    setError("");
+    
+    try {
+      // Prepare the request payload according to RegisterRequest DTO
+      const registerData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        roleName: formData.roleName
+      };
+      
+      // Call the API endpoint
+      const response = await axios.post("/api/auth/register", registerData);
+      
+      // If successful, redirect to login
+      navigate("/login");
+    } catch (err) {
+      // Handle errors
+      if (err.response && err.response.data) {
+        setError(err.response.data.message || "Registration failed");
+      } else {
+        setError("An error occurred during registration");
+      }
+    } finally {
       setIsLoading(false);
-      navigate("/dashboard");
-    }, 1000);
+    }
   };
 
   return (
@@ -37,6 +89,11 @@ export function SignupForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-md mb-4 text-sm">
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="firstName">First Name</Label>
@@ -47,6 +104,8 @@ export function SignupForm() {
                 placeholder="John"
                 className="pl-9"
                 required
+                value={formData.firstName}
+                onChange={handleChange}
               />
             </div>
           </div>
@@ -59,6 +118,8 @@ export function SignupForm() {
                 placeholder="Doe"
                 className="pl-9"
                 required
+                value={formData.lastName}
+                onChange={handleChange}
               />
             </div>
           </div>
@@ -72,6 +133,8 @@ export function SignupForm() {
                 placeholder="name@ist.com"
                 className="pl-9"
                 required
+                value={formData.email}
+                onChange={handleChange}
               />
             </div>
           </div>
@@ -84,6 +147,8 @@ export function SignupForm() {
                 type={showPassword ? "text" : "password"}
                 className="pl-9 pr-9"
                 required
+                value={formData.password}
+                onChange={handleChange}
               />
               <Button
                 type="button"
@@ -98,6 +163,22 @@ export function SignupForm() {
                   <Eye className="h-4 w-4 text-gray-400" />
                 )}
               </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="role">Role</Label>
+            <div className="relative">
+              <UserCheck className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 z-10" />
+              <Select onValueChange={handleRoleChange} required>
+                <SelectTrigger className="pl-9">
+                  <SelectValue placeholder="Select Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                  <SelectItem value="STAFF">Staff</SelectItem>
+                  <SelectItem value="MANAGER">Manager</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <Button 
