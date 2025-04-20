@@ -5,7 +5,7 @@ import Signup from "@/pages/Signup";
 import Dashboard from "@/pages/Dashboard";
 import EmployeeDashboard from "@/pages/EmployeeDashboard";
 import ApplyLeave from "@/pages/ApplyLeave";
-// import AdminDashboard from "@/pages/AdminDashboard";
+import AdminDashboard from "@/pages/AdminDashboard";
 import NotFound from "@/pages/NotFound";
 import ProtectedRoute from "@/components/auth/protected-route";
 
@@ -36,11 +36,11 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
       
-      {/* <Route path="/admin-dashboard" element={
+      <Route path="/admin-dashboard" element={
         <ProtectedRoute roles={["ADMIN"]}>
           <AdminDashboard />
         </ProtectedRoute>
-      } /> */}
+      } />
       
       {/* Fallback routes */}
       <Route path="/404" element={<NotFound />} />

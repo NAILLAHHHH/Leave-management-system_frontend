@@ -12,7 +12,7 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import ApplyLeave from "./pages/ApplyLeave";
-// import AdminDashboard from "./pages/AdminDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 
 import axios from "axios";
 import { useEffect, useState } from "react";
@@ -147,14 +147,14 @@ const App = () => (
             } 
           />
           
-          {/* <Route 
+          <Route 
             path="/admin-dashboard" 
             element={
               <ProtectedRoute roles={["ADMIN"]}>
                 <AdminDashboard />
               </ProtectedRoute>
             } 
-          /> */}
+          />
           
           {/* Fallback routes - always keep at the bottom */}
           <Route path="*" element={<NotFound />} />
