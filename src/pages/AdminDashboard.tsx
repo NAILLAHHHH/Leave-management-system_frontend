@@ -1,24 +1,4 @@
-// Get approver display name
-const getApproverDisplayName = (leave: LeaveRequest): string => {
-    // Check if approver is an object with name properties
-    if (leave.approver && typeof leave.approver === 'object' && 'firstName' in leave.approver) {
-      const firstName = leave.approver.firstName || '';
-      const lastName = leave.approver.lastName || '';
-      return `${firstName} ${lastName}`.trim() || "Unknown";
-    }
-    
-    // Check if we have approvedBy ID
-    if (leave.approvedBy) {
-      return `Admin ID: ${leave.approvedBy}`;
-    }
-    
-    // Check if approver is a number (ID)
-    if (typeof leave.approver === 'number') {
-      return `Admin ID: ${leave.approver}`;
-    }
-    
-    return "N/A";
-  };import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { 
   Card, CardContent, CardDescription, CardHeader, CardTitle 
@@ -41,7 +21,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Download, Calendar, Users, FileText, RefreshCw } from "lucide-react";
+import { Download, Calendar, Users, FileText, RefreshCw, Plus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  AlertDialog, AlertDialogAction, AlertDialogCancel, 
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter, 
+  AlertDialogHeader, AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
 
 // Types
 interface Employee {
@@ -97,6 +83,14 @@ interface LeaveType {
   description?: string;
 }
 
+interface LeaveTypeFormData {
+  id?: number;
+  name: string;
+  maxDaysPerYear: number;
+  requiresDocument: boolean;
+  description?: string;
+}
+
 const AdminDashboard = () => {
   // State
   const [pendingLeaves, setPendingLeaves] = useState<LeaveRequest[]>([]);
@@ -115,6 +109,16 @@ const AdminDashboard = () => {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [showLeaveTypeDialog, setShowLeaveTypeDialog] = useState(false);
+  const [showDeleteLeaveTypeDialog, setShowDeleteLeaveTypeDialog] = useState(false);
+  const [leaveTypeFormData, setLeaveTypeFormData] = useState<LeaveTypeFormData>({
+    name: '',
+    maxDaysPerYear: 0,
+    requiresDocument: false,
+    description: ''
+  });
+  const [leaveTypeToDelete, setLeaveTypeToDelete] = useState<LeaveType | null>(null);
+  const [isEditingLeaveType, setIsEditingLeaveType] = useState(false);
 
   // Load data on component mount
   useEffect(() => {
@@ -247,7 +251,89 @@ const AdminDashboard = () => {
     }
   };
 
-  // Format date for display
+  // Leave Type Management Functions
+  const handleLeaveTypeFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target as HTMLInputElement;
+    
+    setLeaveTypeFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? Number(value) : value
+    }));
+  };
+
+  const handleCreateLeaveType = async () => {
+    try {
+      const response = await axios.post('/api/leave-types', leaveTypeFormData);
+      setLeaveTypes(prev => [...prev, response.data]);
+      setShowLeaveTypeDialog(false);
+      setActionSuccess('Leave type created successfully');
+      resetLeaveTypeForm();
+      setTimeout(() => setActionSuccess(null), 3000);
+    } catch (error) {
+      console.error('Error creating leave type:', error);
+      setActionError('Failed to create leave type');
+      setTimeout(() => setActionError(null), 3000);
+    }
+  };
+
+  const handleUpdateLeaveType = async () => {
+    if (!leaveTypeFormData.id) return;
+    
+    try {
+      const response = await axios.put(`/api/leave-types/${leaveTypeFormData.id}`, leaveTypeFormData);
+      setLeaveTypes(prev => 
+        prev.map(lt => lt.id === response.data.id ? response.data : lt)
+      );
+      setShowLeaveTypeDialog(false);
+      setActionSuccess('Leave type updated successfully');
+      resetLeaveTypeForm();
+      setTimeout(() => setActionSuccess(null), 3000);
+    } catch (error) {
+      console.error('Error updating leave type:', error);
+      setActionError('Failed to update leave type');
+      setTimeout(() => setActionError(null), 3000);
+    }
+  };
+
+  const handleDeleteLeaveType = async () => {
+    if (!leaveTypeToDelete) return;
+    
+    try {
+      await axios.delete(`/api/leave-types/${leaveTypeToDelete.id}`);
+      setLeaveTypes(prev => prev.filter(lt => lt.id !== leaveTypeToDelete.id));
+      setShowDeleteLeaveTypeDialog(false);
+      setActionSuccess('Leave type deleted successfully');
+      setTimeout(() => setActionSuccess(null), 3000);
+    } catch (error) {
+      console.error('Error deleting leave type:', error);
+      setActionError('Failed to delete leave type');
+      setTimeout(() => setActionError(null), 3000);
+    }
+  };
+
+  const resetLeaveTypeForm = () => {
+    setLeaveTypeFormData({
+      name: '',
+      maxDaysPerYear: 0,
+      requiresDocument: false,
+      description: ''
+    });
+    setIsEditingLeaveType(false);
+  };
+
+  const handleEditLeaveType = (leaveType: LeaveType) => {
+    setLeaveTypeFormData({
+      id: leaveType.id,
+      name: leaveType.name,
+      maxDaysPerYear: leaveType.maxDaysPerYear,
+      requiresDocument: leaveType.requiresDocument,
+      description: leaveType.description || ''
+    });
+    setIsEditingLeaveType(true);
+    setShowLeaveTypeDialog(true);
+  };
+
+  // Helper Functions
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A";
     
@@ -263,12 +349,9 @@ const AdminDashboard = () => {
     }
   };
 
-  // Get user initials for avatar
   const getInitials = (leave: LeaveRequest): string => {
-    // If we have employeeName from API
     if (leave.employeeName) {
       try {
-        // Split the name and get initials
         const nameParts = leave.employeeName.split(' ');
         if (nameParts.length >= 2) {
           return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
@@ -280,7 +363,6 @@ const AdminDashboard = () => {
       }
     }
     
-    // Fallback to employee object if it exists
     if (leave.employee) {
       try {
         const firstInitial = leave.employee.firstName ? leave.employee.firstName[0] : '';
@@ -295,14 +377,11 @@ const AdminDashboard = () => {
     return "??";
   };
   
-  // Get employee display name
   const getEmployeeDisplayName = (leave: LeaveRequest): string => {
-    // Check if we have employeeName directly in the leave request (from API)
     if (leave.employeeName) {
       return leave.employeeName;
     }
     
-    // Fallback to employee object if it exists
     if (leave.employee) {
       const firstName = leave.employee.firstName || '';
       const lastName = leave.employee.lastName || '';
@@ -314,7 +393,6 @@ const AdminDashboard = () => {
     return "Unknown Employee";
   };
 
-  // Calculate leave duration in days
   const calculateLeaveDuration = (leave: LeaveRequest) => {
     if (!leave) return 0;
     if (leave.halfDay) return 0.5;
@@ -325,14 +403,13 @@ const AdminDashboard = () => {
       const startDate = new Date(leave.startDate);
       const endDate = new Date(leave.endDate);
       const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include end date
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     } catch (error) {
       console.error("Error calculating leave duration:", error);
       return 0;
     }
   };
 
-  // Filter leaves by status
   const getFilteredLeaves = () => {
     if (!allLeaves || !Array.isArray(allLeaves)) {
       return [];
@@ -345,7 +422,6 @@ const AdminDashboard = () => {
     return allLeaves.filter(leave => leave && leave.status === filterStatus);
   };
 
-  // Get status badge styling
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case "APPROVED":
@@ -361,12 +437,29 @@ const AdminDashboard = () => {
     }
   };
 
-  // Helper function to get leave type display name
   const getLeaveTypeName = (leaveType: string | { id: number; name: string } | null | undefined): string => {
     if (!leaveType) return "Unknown";
     if (typeof leaveType === 'string') return leaveType;
     if (typeof leaveType === 'object' && leaveType !== null && 'name' in leaveType) return leaveType.name;
     return "Unknown";
+  };
+
+  const getApproverDisplayName = (leave: LeaveRequest): string => {
+    if (leave.approver && typeof leave.approver === 'object' && 'firstName' in leave.approver) {
+      const firstName = leave.approver.firstName || '';
+      const lastName = leave.approver.lastName || '';
+      return `${firstName} ${lastName}`.trim() || "Unknown";
+    }
+    
+    if (leave.approvedBy) {
+      return `Admin ID: ${leave.approvedBy}`;
+    }
+    
+    if (typeof leave.approver === 'number') {
+      return `Admin ID: ${leave.approver}`;
+    }
+    
+    return "N/A";
   };
 
   return (
@@ -637,9 +730,21 @@ const AdminDashboard = () => {
         {/* Leave Types Tab */}
         <TabsContent value="leaveTypes">
           <Card>
-            <CardHeader>
-              <CardTitle>Leave Types</CardTitle>
-              <CardDescription>Available leave types in the system</CardDescription>
+            <CardHeader className="flex flex-row justify-between items-center">
+              <div>
+                <CardTitle>Leave Types</CardTitle>
+                <CardDescription>Available leave types in the system</CardDescription>
+              </div>
+              <Button 
+                size="sm" 
+                onClick={() => {
+                  resetLeaveTypeForm();
+                  setShowLeaveTypeDialog(true);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Leave Type
+              </Button>
             </CardHeader>
             <CardContent>
               {loading.leaveTypes ? (
@@ -659,15 +764,39 @@ const AdminDashboard = () => {
                         <TableHead>Max Days/Year</TableHead>
                         <TableHead>Requires Document</TableHead>
                         <TableHead>Description</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {leaveTypes.map((type) => (
                         <TableRow key={type.id}>
-                          <TableCell className="font-medium">{typeof type.name === 'string' ? type.name : JSON.stringify(type.name)}</TableCell>
-                          <TableCell>{typeof type.maxDaysPerYear === 'number' ? type.maxDaysPerYear : 0}</TableCell>
+                          <TableCell className="font-medium">{type.name}</TableCell>
+                          <TableCell>{type.maxDaysPerYear}</TableCell>
                           <TableCell>{type.requiresDocument ? "Yes" : "No"}</TableCell>
-                          <TableCell>{typeof type.description === 'string' ? type.description : "No description"}</TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {type.description || "No description"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditLeaveType(type)}
+                              >
+                                Edit
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => {
+                                  setLeaveTypeToDelete(type);
+                                  setShowDeleteLeaveTypeDialog(true);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -818,8 +947,113 @@ const AdminDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-};
 
-export default AdminDashboard;
+      {/* Create/Edit Leave Type Dialog */}
+      <Dialog open={showLeaveTypeDialog} onOpenChange={setShowLeaveTypeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isEditingLeaveType ? 'Edit Leave Type' : 'Create New Leave Type'}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditingLeaveType 
+                ? 'Modify the details of this leave type'
+                : 'Add a new leave type to the system'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Leave Type Name</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={leaveTypeFormData.name}
+                  onChange={handleLeaveTypeFormChange}
+                  placeholder="e.g., Annual Leave"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maxDaysPerYear">Max Days Per Year</Label>
+                <Input
+                  id="maxDaysPerYear"
+                  name="maxDaysPerYear"
+                  type="number"
+                  min="0"
+                  value={leaveTypeFormData.maxDaysPerYear}
+                  onChange={handleLeaveTypeFormChange}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="requiresDocument"
+                name="requiresDocument"
+                checked={leaveTypeFormData.requiresDocument}
+                onCheckedChange={(checked) => 
+                  setLeaveTypeFormData(prev => ({
+                    ...prev,
+                    requiresDocument: !!checked
+                  }))
+                }
+              />
+              <Label htmlFor="requiresDocument">Requires supporting document</Label>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Textarea
+                id="description"
+                name="description"
+                value={leaveTypeFormData.description || ''}
+                onChange={handleLeaveTypeFormChange}
+                placeholder="Description of this leave type"
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLeaveTypeDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={isEditingLeaveType ? handleUpdateLeaveType : handleCreateLeaveType}
+              disabled={!leaveTypeFormData.name || leaveTypeFormData.maxDaysPerYear < 0}
+              >
+                {isEditingLeaveType ? 'Update' : 'Create'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+  
+        {/* Delete Leave Type Confirmation Dialog */}
+        <AlertDialog open={showDeleteLeaveTypeDialog} onOpenChange={setShowDeleteLeaveTypeDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the leave type 
+                "{leaveTypeToDelete?.name}" and remove it from the system.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteLeaveType}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
+  };
+  
+  export default AdminDashboard;
