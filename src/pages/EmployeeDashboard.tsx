@@ -3,7 +3,7 @@ import axios from "axios";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Calendar } from "@/components/ui/calendar";
+import { RwandaCalendar } from "@/components/calendar/RwandaCalendar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -522,9 +522,9 @@ const EmployeeDashboard = () => {
               <CardDescription>Team members on leave and public holidays</CardDescription>
             </CardHeader>
             <CardContent>
-              <Calendar />
+              <RwandaCalendar />
               
-              {/* Upcoming holidays - Empty placeholder */}
+              {/* Upcoming holidays - Empty placeholder
               <div className="mt-4">
                 <h4 className="font-medium text-sm mb-2">Upcoming Holidays</h4>
                 <div className="border rounded-md p-4 bg-gray-50">
@@ -540,7 +540,7 @@ const EmployeeDashboard = () => {
                     <p className="text-gray-500 text-sm text-center">Holiday information coming soon</p>
                   </div>
                 </div>
-              </div>
+              </div> */}
               
               {/* Team members on leave */}
               <div className="mt-6">
