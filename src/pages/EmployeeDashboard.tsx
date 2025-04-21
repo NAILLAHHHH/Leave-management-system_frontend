@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Users } from "lucide-react";
 
 // Types for proper type checking
 interface LeaveType {
@@ -19,7 +20,9 @@ interface LeaveType {
 
 interface LeaveBalance {
   id: number;
-  leaveType: LeaveType | string;
+  employeeId: number;
+  employeeName: string;
+  leaveType:  LeaveType | string;  // Changed from LeaveType | string to just string since API returns "PTO"
   totalDays: number;
   usedDays: number;
   pendingDays: number;
@@ -40,9 +43,19 @@ interface LeaveRequest {
   createdAt: string;
 }
 
+interface TeamMemberLeave {
+  employeeId: number;
+  employeeName: string;
+  profilePicture?: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+
 const EmployeeDashboard = () => {
   const navigate = useNavigate();
-  const [leaveBalances, setLeaveBalances] = useState([]);
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [loading, setLoading] = useState({
     balances: true,
@@ -51,12 +64,14 @@ const EmployeeDashboard = () => {
   const [cancellingLeaveId, setCancellingLeaveId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [teamMembersOnLeave, setTeamMembersOnLeave] = useState<TeamMemberLeave[]>([]);
+  const [loadingTeamLeaves, setLoadingTeamLeaves] = useState(true);
 
-  // Helper function to safely get leave type name
-  const getLeaveTypeName = (leaveType) => {
-    if (!leaveType) return "";
+  // Fix the getLeaveTypeName function
+  const getLeaveTypeName = (leaveType: string | { id: number; name: string } | null | undefined): string => {
+    if (!leaveType) return "Unknown";
     if (typeof leaveType === "string") return leaveType;
-    if (typeof leaveType === "object" && leaveType.name) return leaveType.name;
+    if (typeof leaveType === "object" && leaveType !== null && 'name' in leaveType) return leaveType.name;
     return "Unknown Leave Type";
   };
 
@@ -67,10 +82,12 @@ const EmployeeDashboard = () => {
         // Try to fetch leave balances
         try {
           const balancesResponse = await axios.get('/api/leave-balances/my-balances');
+          console.log('Leave balances raw response:', balancesResponse.data);
+          // Make sure we're handling array of balances
           setLeaveBalances(balancesResponse.data || []);
+          console.log('Processed balances:', balancesResponse.data);
         } catch (err) {
           console.error("Failed to fetch leave balances:", err);
-          // Use empty array as fallback
           setLeaveBalances([]);
         }
         setLoading(prev => ({ ...prev, balances: false }));
@@ -86,6 +103,17 @@ const EmployeeDashboard = () => {
         }
         setLoading(prev => ({ ...prev, leaves: false }));
 
+        // Add this section to fetch team members on leave
+        try {
+          const teamLeavesResponse = await axios.get('/api/leaves/current');
+          console.log('Team leaves response:', teamLeavesResponse.data);
+          setTeamMembersOnLeave(teamLeavesResponse.data);
+        } catch (err) {
+          console.error("Failed to fetch team leaves:", err);
+          setTeamMembersOnLeave([]);
+        }
+        setLoadingTeamLeaves(false);
+
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
         setError(true);
@@ -93,6 +121,7 @@ const EmployeeDashboard = () => {
           balances: false,
           leaves: false
         });
+        setLoadingTeamLeaves(false);
       }
     };
 
@@ -513,21 +542,49 @@ const EmployeeDashboard = () => {
                 </div>
               </div>
               
-              {/* Team members on leave - Empty placeholder */}
+              {/* Team members on leave */}
               <div className="mt-6">
                 <h4 className="font-medium text-sm mb-2">Team Members on Leave</h4>
-                <div className="border rounded-md p-4 bg-gray-50">
-                  <div className="flex flex-col items-center justify-center py-4">
-                    <div className="text-gray-400 mb-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                <div className="border rounded-md p-4">
+                  {loadingTeamLeaves ? (
+                    <div className="flex justify-center p-4">
+                      <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     </div>
-                    <p className="text-gray-500 text-sm text-center">Team member information coming soon</p>
-                  </div>
+                  ) : teamMembersOnLeave.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-4">
+                      <div className="text-gray-400 mb-2">
+                        <Users className="h-6 w-6" />
+                      </div>
+                      <p className="text-gray-500 text-sm text-center">No team members currently on leave</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {teamMembersOnLeave.map((member) => (
+                        <div key={`${member.employeeId}-${member.startDate}`} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-8 w-8">
+                              {member.profilePicture ? (
+                                <AvatarImage src={member.profilePicture} alt={member.employeeName} />
+                              ) : (
+                                <AvatarFallback>{getInitials(member.employeeName)}</AvatarFallback>
+                              )}
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium">{member.employeeName}</p>
+                              <p className="text-xs text-gray-500">{getLeaveTypeName(member.leaveType)}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm">{formatDate(member.startDate)}</p>
+                            <p className="text-xs text-gray-500">to {formatDate(member.endDate)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

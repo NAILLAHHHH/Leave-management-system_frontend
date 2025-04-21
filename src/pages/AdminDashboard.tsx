@@ -28,6 +28,40 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter, 
   AlertDialogHeader, AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
+import { saveAs } from 'file-saver';
+
+// Add this helper function after the imports and before the AdminDashboard component
+const convertToCSV = (leaves: LeaveRequest[]): string => {
+  const headers = [
+    'Employee Name',
+    'Email',
+    'Leave Type',
+    'Start Date',
+    'End Date',
+    'Duration',
+    'Status',
+    'Reason',
+    'Approver',
+    'Applied On'
+  ].join(',');
+
+  const rows = leaves.map(leave => {
+    return [
+      `"${getEmployeeDisplayName(leave)}"`,
+      `"${leave.employee?.email || ''}"`,
+      `"${getLeaveTypeName(leave.leaveType)}"`,
+      `"${formatDate(leave.startDate)}"`,
+      `"${formatDate(leave.endDate)}"`,
+      `"${calculateLeaveDuration(leave)}"`,
+      `"${leave.status}"`,
+      `"${leave.reason?.replace(/"/g, '""') || ''}"`,
+      `"${getApproverDisplayName(leave)}"`,
+      `"${formatDate(leave.createdAt)}"`
+    ].join(',');
+  });
+
+  return [headers, ...rows].join('\n');
+};
 
 // Types
 interface Employee {
@@ -90,6 +124,80 @@ interface LeaveTypeFormData {
   requiresDocument: boolean;
   description?: string;
 }
+
+// Add these helper functions after the interfaces and before the AdminDashboard component
+const getEmployeeDisplayName = (leave: LeaveRequest): string => {
+  if (leave.employeeName) {
+    return leave.employeeName;
+  }
+  
+  if (leave.employee) {
+    const firstName = leave.employee.firstName || '';
+    const lastName = leave.employee.lastName || '';
+    
+    if (!firstName && !lastName) return "Unknown Employee";
+    return `${firstName} ${lastName}`.trim();
+  }
+  
+  return "Unknown Employee";
+};
+
+const getLeaveTypeName = (leaveType: string | { id: number; name: string } | null | undefined): string => {
+  if (!leaveType) return "Unknown";
+  if (typeof leaveType === 'string') return leaveType;
+  if (typeof leaveType === 'object' && leaveType !== null && 'name' in leaveType) return leaveType.name;
+  return "Unknown";
+};
+
+const formatDate = (dateString: string) => {
+  if (!dateString) return "N/A";
+  
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return dateString || "N/A";
+  }
+};
+
+const calculateLeaveDuration = (leave: LeaveRequest): number => {
+  if (!leave) return 0;
+  if (leave.halfDay) return 0.5;
+  
+  try {
+    if (!leave.startDate || !leave.endDate) return 0;
+    
+    const startDate = new Date(leave.startDate);
+    const endDate = new Date(leave.endDate);
+    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  } catch (error) {
+    console.error("Error calculating leave duration:", error);
+    return 0;
+  }
+};
+
+const getApproverDisplayName = (leave: LeaveRequest): string => {
+  if (leave.approver && typeof leave.approver === 'object' && 'firstName' in leave.approver) {
+    const firstName = leave.approver.firstName || '';
+    const lastName = leave.approver.lastName || '';
+    return `${firstName} ${lastName}`.trim() || "Unknown";
+  }
+  
+  if (leave.approvedBy) {
+    return `Admin ID: ${leave.approvedBy}`;
+  }
+  
+  if (typeof leave.approver === 'number') {
+    return `Admin ID: ${leave.approver}`;
+  }
+  
+  return "N/A";
+};
 
 const AdminDashboard = () => {
   // State
@@ -334,21 +442,6 @@ const AdminDashboard = () => {
   };
 
   // Helper Functions
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "N/A";
-    
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return dateString || "N/A";
-    }
-  };
-
   const getInitials = (leave: LeaveRequest): string => {
     if (leave.employeeName) {
       try {
@@ -377,39 +470,6 @@ const AdminDashboard = () => {
     return "??";
   };
   
-  const getEmployeeDisplayName = (leave: LeaveRequest): string => {
-    if (leave.employeeName) {
-      return leave.employeeName;
-    }
-    
-    if (leave.employee) {
-      const firstName = leave.employee.firstName || '';
-      const lastName = leave.employee.lastName || '';
-      
-      if (!firstName && !lastName) return "Unknown Employee";
-      return `${firstName} ${lastName}`.trim();
-    }
-    
-    return "Unknown Employee";
-  };
-
-  const calculateLeaveDuration = (leave: LeaveRequest) => {
-    if (!leave) return 0;
-    if (leave.halfDay) return 0.5;
-    
-    try {
-      if (!leave.startDate || !leave.endDate) return 0;
-      
-      const startDate = new Date(leave.startDate);
-      const endDate = new Date(leave.endDate);
-      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    } catch (error) {
-      console.error("Error calculating leave duration:", error);
-      return 0;
-    }
-  };
-
   const getFilteredLeaves = () => {
     if (!allLeaves || !Array.isArray(allLeaves)) {
       return [];
@@ -437,29 +497,12 @@ const AdminDashboard = () => {
     }
   };
 
-  const getLeaveTypeName = (leaveType: string | { id: number; name: string } | null | undefined): string => {
-    if (!leaveType) return "Unknown";
-    if (typeof leaveType === 'string') return leaveType;
-    if (typeof leaveType === 'object' && leaveType !== null && 'name' in leaveType) return leaveType.name;
-    return "Unknown";
-  };
-
-  const getApproverDisplayName = (leave: LeaveRequest): string => {
-    if (leave.approver && typeof leave.approver === 'object' && 'firstName' in leave.approver) {
-      const firstName = leave.approver.firstName || '';
-      const lastName = leave.approver.lastName || '';
-      return `${firstName} ${lastName}`.trim() || "Unknown";
-    }
-    
-    if (leave.approvedBy) {
-      return `Admin ID: ${leave.approvedBy}`;
-    }
-    
-    if (typeof leave.approver === 'number') {
-      return `Admin ID: ${leave.approver}`;
-    }
-    
-    return "N/A";
+  // Add this function inside the AdminDashboard component, after the other handler functions
+  const handleExportCSV = () => {
+    const csvData = convertToCSV(getFilteredLeaves());
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8' });
+    const fileName = `leave-requests-${new Date().toISOString().split('T')[0]}.csv`;
+    saveAs(blob, fileName);
   };
 
   return (
@@ -651,6 +694,15 @@ const AdminDashboard = () => {
                 <CardDescription>Complete history of leave requests</CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                {/* Add the Export button here */}
+                <Button 
+                  variant="outline" 
+                  onClick={handleExportCSV}
+                  className="mr-2"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export CSV
+                </Button>
                 <Label htmlFor="status-filter">Filter by Status:</Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                   <SelectTrigger className="w-[180px]">
@@ -699,361 +751,360 @@ const AdminDashboard = () => {
                                   {getInitials(leave)}
                                 </AvatarFallback>
                               </Avatar>
+                              </div>
                               <div>{getEmployeeDisplayName(leave)}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{getLeaveTypeName(leave.leaveType)}</TableCell>
-                          <TableCell>
-                            {formatDate(leave.startDate)}
-                            {!leave.halfDay && leave.endDate && ` to ${formatDate(leave.endDate)}`}
-                            {leave.halfDay && leave.halfDayPeriod && ` (${leave.halfDayPeriod})`}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getStatusBadgeClass(leave.status)}>
-                              {leave.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {getApproverDisplayName(leave)}
-                          </TableCell>
-                          <TableCell>{leave.createdAt ? formatDate(leave.createdAt) : 'Unknown'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                            </TableCell>
+                            <TableCell>{getLeaveTypeName(leave.leaveType)}</TableCell>
+                            <TableCell>
+                              {formatDate(leave.startDate)}
+                              {!leave.halfDay && leave.endDate && ` to ${formatDate(leave.endDate)}`}
+                              {leave.halfDay && leave.halfDayPeriod && ` (${leave.halfDayPeriod})`}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getStatusBadgeClass(leave.status)}>
+                                {leave.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {getApproverDisplayName(leave)}
+                            </TableCell>
+                            <TableCell>{leave.createdAt ? formatDate(leave.createdAt) : 'Unknown'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Leave Types Tab */}
+          <TabsContent value="leaveTypes">
+            <Card>
+              <CardHeader className="flex flex-row justify-between items-center">
+                <div>
+                  <CardTitle>Leave Types</CardTitle>
+                  <CardDescription>Available leave types in the system</CardDescription>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Leave Types Tab */}
-        <TabsContent value="leaveTypes">
-          <Card>
-            <CardHeader className="flex flex-row justify-between items-center">
-              <div>
-                <CardTitle>Leave Types</CardTitle>
-                <CardDescription>Available leave types in the system</CardDescription>
+                <Button 
+                  size="sm" 
+                  onClick={() => {
+                    resetLeaveTypeForm();
+                    setShowLeaveTypeDialog(true);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Leave Type
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {loading.leaveTypes ? (
+                  <div className="flex justify-center py-8">
+                    <div className="w-8 h-8 border-4 border-t-blue-500 border-b-blue-500 border-l-gray-200 border-r-gray-200 rounded-full animate-spin"></div>
+                  </div>
+                ) : leaveTypes.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No leave types found</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Max Days/Year</TableHead>
+                          <TableHead>Requires Document</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {leaveTypes.map((type) => (
+                          <TableRow key={type.id}>
+                            <TableCell className="font-medium">{type.name}</TableCell>
+                            <TableCell>{type.maxDaysPerYear}</TableCell>
+                            <TableCell>{type.requiresDocument ? "Yes" : "No"}</TableCell>
+                            <TableCell className="max-w-xs truncate">
+                              {type.description || "No description"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleEditLeaveType(type)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setLeaveTypeToDelete(type);
+                                    setShowDeleteLeaveTypeDialog(true);
+                                  }}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+  
+        {/* Approve Leave Dialog */}
+        <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Approve Leave Request</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to approve this leave request?
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedLeave && (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={selectedLeave.employee?.profilePicture} />
+                    <AvatarFallback>
+                      {getInitials(selectedLeave)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium">
+                      {getEmployeeDisplayName(selectedLeave)}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {selectedLeave.employee?.email || (selectedLeave.employeeId ? `ID: ${selectedLeave.employeeId}` : 'No email')}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-500">Leave Type</Label>
+                    <div>{getLeaveTypeName(selectedLeave.leaveType)}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Date Range</Label>
+                    <div>
+                      {formatDate(selectedLeave.startDate)}
+                      {!selectedLeave.halfDay && ` to ${formatDate(selectedLeave.endDate)}`}
+                      {selectedLeave.halfDay && ` (${selectedLeave.halfDayPeriod})`}
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="approveComment">Comments (Optional)</Label>
+                  <Textarea
+                    id="approveComment"
+                    placeholder="Add any comments about this approval"
+                    value={approveComment}
+                    onChange={(e) => setApproveComment(e.target.value)}
+                  />
+                </div>
               </div>
-              <Button 
-                size="sm" 
-                onClick={() => {
-                  resetLeaveTypeForm();
-                  setShowLeaveTypeDialog(true);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Leave Type
+            )}
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowApproveDialog(false)}>
+                Cancel
               </Button>
-            </CardHeader>
-            <CardContent>
-              {loading.leaveTypes ? (
-                <div className="flex justify-center py-8">
-                  <div className="w-8 h-8 border-4 border-t-blue-500 border-b-blue-500 border-l-gray-200 border-r-gray-200 rounded-full animate-spin"></div>
-                </div>
-              ) : leaveTypes.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No leave types found</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Max Days/Year</TableHead>
-                        <TableHead>Requires Document</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {leaveTypes.map((type) => (
-                        <TableRow key={type.id}>
-                          <TableCell className="font-medium">{type.name}</TableCell>
-                          <TableCell>{type.maxDaysPerYear}</TableCell>
-                          <TableCell>{type.requiresDocument ? "Yes" : "No"}</TableCell>
-                          <TableCell className="max-w-xs truncate">
-                            {type.description || "No description"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleEditLeaveType(type)}
-                              >
-                                Edit
-                              </Button>
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
-                                onClick={() => {
-                                  setLeaveTypeToDelete(type);
-                                  setShowDeleteLeaveTypeDialog(true);
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Approve Leave Dialog */}
-      <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Approve Leave Request</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to approve this leave request?
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedLeave && (
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={selectedLeave.employee?.profilePicture} />
-                  <AvatarFallback>
-                    {getInitials(selectedLeave)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="font-medium">
-                    {getEmployeeDisplayName(selectedLeave)}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {selectedLeave.employee?.email || (selectedLeave.employeeId ? `ID: ${selectedLeave.employeeId}` : 'No email')}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-gray-500">Leave Type</Label>
-                  <div>{getLeaveTypeName(selectedLeave.leaveType)}</div>
-                </div>
-                <div>
-                  <Label className="text-sm text-gray-500">Date Range</Label>
-                  <div>
-                    {formatDate(selectedLeave.startDate)}
-                    {!selectedLeave.halfDay && ` to ${formatDate(selectedLeave.endDate)}`}
-                    {selectedLeave.halfDay && ` (${selectedLeave.halfDayPeriod})`}
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="approveComment">Comments (Optional)</Label>
-                <Textarea
-                  id="approveComment"
-                  placeholder="Add any comments about this approval"
-                  value={approveComment}
-                  onChange={(e) => setApproveComment(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApproveDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleApproveLeave}>
-              Approve
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject Leave Dialog */}
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Leave Request</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this leave request.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedLeave && (
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={selectedLeave.employee?.profilePicture} />
-                  <AvatarFallback>
-                    {getInitials(selectedLeave)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="font-medium">
-                    {getEmployeeDisplayName(selectedLeave)}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {selectedLeave.employee?.email || (selectedLeave.employeeId ? `ID: ${selectedLeave.employeeId}` : 'No email')}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-gray-500">Leave Type</Label>
-                  <div>{getLeaveTypeName(selectedLeave.leaveType)}</div>
-                </div>
-                <div>
-                  <Label className="text-sm text-gray-500">Date Range</Label>
-                  <div>
-                    {formatDate(selectedLeave.startDate)}
-                    {!selectedLeave.halfDay && ` to ${formatDate(selectedLeave.endDate)}`}
-                    {selectedLeave.halfDay && ` (${selectedLeave.halfDayPeriod})`}
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="rejectReason" className="text-red-500">Reason (Required)</Label>
-                <Textarea
-                  id="rejectReason"
-                  placeholder="Provide reason for rejection"
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  className="border-red-200 focus:ring-red-500"
-                  required
-                />
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleRejectLeave}
-              disabled={!rejectReason}
-            >
-              Reject
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create/Edit Leave Type Dialog */}
-      <Dialog open={showLeaveTypeDialog} onOpenChange={setShowLeaveTypeDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditingLeaveType ? 'Edit Leave Type' : 'Create New Leave Type'}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditingLeaveType 
-                ? 'Modify the details of this leave type'
-                : 'Add a new leave type to the system'}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Leave Type Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={leaveTypeFormData.name}
-                  onChange={handleLeaveTypeFormChange}
-                  placeholder="e.g., Annual Leave"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxDaysPerYear">Max Days Per Year</Label>
-                <Input
-                  id="maxDaysPerYear"
-                  name="maxDaysPerYear"
-                  type="number"
-                  min="0"
-                  value={leaveTypeFormData.maxDaysPerYear}
-                  onChange={handleLeaveTypeFormChange}
-                  required
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="requiresDocument"
-                name="requiresDocument"
-                checked={leaveTypeFormData.requiresDocument}
-                onCheckedChange={(checked) => 
-                  setLeaveTypeFormData(prev => ({
-                    ...prev,
-                    requiresDocument: !!checked
-                  }))
-                }
-              />
-              <Label htmlFor="requiresDocument">Requires supporting document</Label>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (Optional)</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={leaveTypeFormData.description || ''}
-                onChange={handleLeaveTypeFormChange}
-                placeholder="Description of this leave type"
-                rows={3}
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowLeaveTypeDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={isEditingLeaveType ? handleUpdateLeaveType : handleCreateLeaveType}
-              disabled={!leaveTypeFormData.name || leaveTypeFormData.maxDaysPerYear < 0}
-              >
-                {isEditingLeaveType ? 'Update' : 'Create'}
+              <Button onClick={handleApproveLeave}>
+                Approve
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
   
-        {/* Delete Leave Type Confirmation Dialog */}
-        <AlertDialog open={showDeleteLeaveTypeDialog} onOpenChange={setShowDeleteLeaveTypeDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the leave type 
-                "{leaveTypeToDelete?.name}" and remove it from the system.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={handleDeleteLeaveType}
-                className="bg-red-600 hover:bg-red-700"
+        {/* Reject Leave Dialog */}
+        <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject Leave Request</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejecting this leave request.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedLeave && (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={selectedLeave.employee?.profilePicture} />
+                    <AvatarFallback>
+                      {getInitials(selectedLeave)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium">
+                      {getEmployeeDisplayName(selectedLeave)}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {selectedLeave.employee?.email || (selectedLeave.employeeId ? `ID: ${selectedLeave.employeeId}` : 'No email')}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-500">Leave Type</Label>
+                    <div>{getLeaveTypeName(selectedLeave.leaveType)}</div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-gray-500">Date Range</Label>
+                    <div>
+                      {formatDate(selectedLeave.startDate)}
+                      {!selectedLeave.halfDay && ` to ${formatDate(selectedLeave.endDate)}`}
+                      {selectedLeave.halfDay && ` (${selectedLeave.halfDayPeriod})`}
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="rejectReason" className="text-red-500">Reason (Required)</Label>
+                  <Textarea
+                    id="rejectReason"
+                    placeholder="Provide reason for rejection"
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    className="border-red-200 focus:ring-red-500"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleRejectLeave}
+                disabled={!rejectReason}
               >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    );
-  };
+                Reject
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
   
-  export default AdminDashboard;
+        {/* Create/Edit Leave Type Dialog */}
+        <Dialog open={showLeaveTypeDialog} onOpenChange={setShowLeaveTypeDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {isEditingLeaveType ? 'Edit Leave Type' : 'Create New Leave Type'}
+              </DialogTitle>
+              <DialogDescription>
+                {isEditingLeaveType 
+                  ? 'Modify the details of this leave type'
+                  : 'Add a new leave type to the system'}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Leave Type Name</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={leaveTypeFormData.name}
+                    onChange={handleLeaveTypeFormChange}
+                    placeholder="e.g., Annual Leave"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxDaysPerYear">Max Days Per Year</Label>
+                  <Input
+                    id="maxDaysPerYear"
+                    name="maxDaysPerYear"
+                    type="number"
+                    min="0"
+                    value={leaveTypeFormData.maxDaysPerYear}
+                    onChange={handleLeaveTypeFormChange}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="requiresDocument"
+                  name="requiresDocument"
+                  checked={leaveTypeFormData.requiresDocument}
+                  onCheckedChange={(checked) => 
+                    setLeaveTypeFormData(prev => ({
+                      ...prev,
+                      requiresDocument: !!checked
+                    }))
+                  }
+                />
+                <Label htmlFor="requiresDocument">Requires supporting document</Label>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="description">Description (Optional)</Label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  value={leaveTypeFormData.description || ''}
+                  onChange={handleLeaveTypeFormChange}
+                  placeholder="Description of this leave type"
+                  rows={3}
+                />
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowLeaveTypeDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={isEditingLeaveType ? handleUpdateLeaveType : handleCreateLeaveType}
+                disabled={!leaveTypeFormData.name || leaveTypeFormData.maxDaysPerYear < 0}
+                >
+                  {isEditingLeaveType ? 'Update' : 'Create'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+    
+          {/* Delete Leave Type Confirmation Dialog */}
+          <AlertDialog open={showDeleteLeaveTypeDialog} onOpenChange={setShowDeleteLeaveTypeDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the leave type 
+                  "{leaveTypeToDelete?.name}" and remove it from the system.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleDeleteLeaveType}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      );
+}
+      export default AdminDashboard;
