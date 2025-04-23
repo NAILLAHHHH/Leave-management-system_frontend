@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Users } from "lucide-react";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 // Types for proper type checking
 interface LeaveType {
@@ -213,7 +214,10 @@ const EmployeeDashboard = () => {
       {/* Header with quick actions */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Employee Dashboard</h1>
-        <Button onClick={handleApplyForLeave}>Apply for Leave</Button>
+        <div className="flex items-center gap-4">
+          <NotificationCenter />
+          <Button onClick={handleApplyForLeave}>Apply for Leave</Button>
+        </div>
       </div>
 
       {/* Leave Balance Summary */}

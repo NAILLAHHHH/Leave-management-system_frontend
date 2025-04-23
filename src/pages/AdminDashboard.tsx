@@ -29,6 +29,7 @@ import {
   AlertDialogHeader, AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { saveAs } from 'file-saver';
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 // Add this helper function after the imports and before the AdminDashboard component
 const convertToCSV = (leaves: LeaveRequest[]): string => {
@@ -510,7 +511,8 @@ const AdminDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <div className="space-x-2">
+        <div className="flex items-center space-x-4">
+          <NotificationCenter />
           <Button 
             variant="outline"
             onClick={handleFixLeaveBalances}
