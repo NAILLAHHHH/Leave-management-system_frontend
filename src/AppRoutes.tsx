@@ -8,6 +8,7 @@ import ApplyLeave from "@/pages/ApplyLeave";
 import AdminDashboard from "@/pages/AdminDashboard";
 import NotFound from "@/pages/NotFound";
 import ProtectedRoute from "@/components/auth/protected-route";
+import OAuth2RedirectHandler from "@/components/OAuth2RedirectHandler";
 
 const AppRoutes = () => {
   return (
@@ -16,6 +17,7 @@ const AppRoutes = () => {
       <Route path="/" element={<Index />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
       
       {/* Protected routes */}
       <Route path="/dashboard" element={

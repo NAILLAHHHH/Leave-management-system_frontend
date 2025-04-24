@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,6 +22,38 @@ export function LoginForm() {
     password: ""
   });
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Handle OAuth redirect and query params
+  useEffect(() => {
+    // Check if this is a redirect from OAuth with a token
+    const params = new URLSearchParams(location.search);
+    const token = params.get("token");
+    
+    if (token) {
+      // Validate the token with the backend
+      axios.get(`/api/auth/oauth2/token?token=${token}`)
+        .then(response => {
+          // Store the token in localStorage
+          localStorage.setItem("token", response.data.token);
+          
+          // If user data is returned, you can also store that
+          if (response.data) {
+            localStorage.setItem("user", JSON.stringify({
+              email: response.data.email,
+              role: response.data.role
+            }));
+          }
+          
+          // Redirect to dashboard
+          navigate("/dashboard");
+        })
+        .catch(err => {
+          setError("Failed to authenticate with Microsoft account");
+          console.error("OAuth token validation failed", err);
+        });
+    }
+  }, [location, navigate]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -63,6 +95,12 @@ export function LoginForm() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleMicrosoftLogin = () => {
+    setIsLoading(true);
+    // Redirect to backend endpoint that initiates Microsoft OAuth flow
+    window.location.href = "/api/auth/microsoft/login";
   };
 
   return (
@@ -129,6 +167,26 @@ export function LoginForm() {
               disabled={isLoading}
             >
               {isLoading ? "Signing in..." : "Sign in"}
+            </Button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-gray-500">Or continue with</span>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleMicrosoftLogin}
+              disabled={isLoading}
+            >
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M0 0h11.5v11.5H0V0zm12.5 0H24v11.5H12.5V0zM0 12.5h11.5V24H0V12.5zm12.5 0H24V24H12.5V12.5z"/>
+              </svg>
+              Sign in with Microsoft
             </Button>
             <div className="text-center text-sm">
               Don't have an account?{" "}
