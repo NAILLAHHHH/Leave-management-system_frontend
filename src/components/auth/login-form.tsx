@@ -100,7 +100,7 @@ export function LoginForm() {
   const handleMicrosoftLogin = () => {
     setIsLoading(true);
     // Redirect to backend endpoint that initiates Microsoft OAuth flow
-    window.location.href = "/api/auth/microsoft/login";
+    window.location.href = "oauth2/authorization/microsoft";
   };
 
   return (
