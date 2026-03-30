@@ -1,73 +1,142 @@
-# Welcome to your Lovable project
+# Leave Management System — Frontend
 
-## Project info
+A modern, responsive web application for managing employee leave requests. Built with React and TypeScript, it connects to the [Leave Management System backend API](https://github.com/NAILLAHHHH/Leave_Management_System-main) running on `http://localhost:8080`.
 
-**URL**: https://lovable.dev/projects/11ebf82c-a0e2-4261-adfb-2a78d3ebe726
+---
 
-## How can I edit this code?
+## Tech Stack
 
-There are several ways of editing your application.
+| Category | Technology |
+|---|---|
+| Framework | React 18 + TypeScript 5 |
+| Build Tool | Vite 5 (with SWC) |
+| Styling | Tailwind CSS + tailwindcss-animate |
+| UI Components | shadcn/ui (Radix UI primitives) + MUI (Material UI v7) |
+| Routing | React Router DOM v6 |
+| State Management | Zustand |
+| Server State / Data Fetching | TanStack React Query v5 + Axios |
+| Forms | React Hook Form + Formik, validated with Zod / Yup |
+| Charts | Recharts |
+| Icons | Lucide React + MUI Icons |
+| Date Utilities | date-fns + react-day-picker |
+| Theming | next-themes (light/dark mode) |
+| Notifications | Sonner (toasts) |
+| File Export | file-saver |
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/11ebf82c-a0e2-4261-adfb-2a78d3ebe726) and start prompting.
+## Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Node.js** 18+ and **npm** (or use [nvm](https://github.com/nvm-sh/nvm))
+- The backend API running at `http://localhost:8080`
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Getting Started
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 1. Clone the Repository
 
-Follow these steps:
+```bash
+git clone https://github.com/NAILLAHHHH/Leave-management-system_frontend.git
+cd Leave-management-system_frontend
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 2. Install Dependencies
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```bash
+npm install
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+### 3. Start the Development Server
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app runs at **http://localhost:3000** and proxies all `/api` requests to the backend at `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## Available Scripts
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the development server with hot reload |
+| `npm run build` | Build for production (outputs to `dist/`) |
+| `npm run build:dev` | Build in development mode |
+| `npm run preview` | Preview the production build locally |
+| `npm run lint` | Run ESLint |
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+## Project Structure
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```
+src/
+├── components/       # Reusable UI components (shadcn/ui + custom)
+├── pages/            # Route-level page components
+├── hooks/            # Custom React hooks
+├── services/         # Axios API service functions
+├── store/            # Zustand global state
+├── types/            # TypeScript type definitions
+├── lib/              # Utility functions (e.g. cn helper)
+└── main.tsx          # App entry point
+```
 
-## How can I deploy this project?
+---
 
-Simply open [Lovable](https://lovable.dev/projects/11ebf82c-a0e2-4261-adfb-2a78d3ebe726) and click on Share -> Publish.
+## Backend Integration
 
-## Can I connect a custom domain to my Lovable project?
+The Vite dev server proxies API calls automatically — no CORS configuration needed during development:
 
-Yes, you can!
+```
+/api/* → http://localhost:8080/*
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+To point to a different backend, update the `proxy` target in `vite.config.ts`:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+```ts
+proxy: {
+  '/api': {
+    target: 'http://your-backend-url',
+    changeOrigin: true,
+    secure: false
+  }
+}
+```
+
+---
+
+## Docker
+
+The project includes a Dockerfile for containerized deployment.
+
+```bash
+# Build the image
+docker build -t leave-management-frontend .
+
+# Run the container
+docker run -p 3000:3000 leave-management-frontend
+```
+
+Or with Docker Compose:
+
+```bash
+docker-compose up --build
+```
+
+> **Note:** The Docker image runs `npm run dev --host` rather than serving the production build via a static server. For production deployments, consider serving the output of `npm run build` (the `dist/` folder) with a static server like Nginx.
+
+---
+
+## UI Features
+
+- **Leave Request Management** — submit, view, edit, and track leave requests
+- **Dashboard** — visual summary of leave balances and request status via Recharts
+- **Role-based Views** — different experiences for employees and managers/admins
+- **Dark / Light Mode** — theme toggle powered by `next-themes`
+- **Form Validation** — client-side validation with Zod and Yup schemas
+- **File Export** — export leave data using `file-saver`
+- **Toast Notifications** — real-time feedback with Sonner
+
+---
